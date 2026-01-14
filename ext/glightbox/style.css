@@ -1,0 +1,9 @@
+.glightbox-container {
+	.gprev, .gnext {
+		display: none;
+	}
+
+	.gslide-description {
+		display: none;
+	}
+}
