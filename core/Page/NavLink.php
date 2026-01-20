@@ -14,11 +14,11 @@ final class NavLink
      * @param page-string[] $matches
      */
     public function __construct(
-        public readonly Url $link,
-        public readonly string|HTMLElement $description,
+        public Url $link,
+        public string|HTMLElement $description,
         public readonly string $key,
         array $matches = [],
-        public readonly int $order = 50,
+        public int $order = 50,
         ?string $_query = null,
         public readonly ?string $parent = null,
     ) {
