@@ -357,9 +357,14 @@ final class NavManager extends Extension
         return new LinkData($row);
     }
 
-    public static function get_link_by_key(string $key): ?LinkData
+    public static function get_link_by_key(string $key, ?string $parent_key = null): ?LinkData
     {
-        $row = Ctx::$database->get_row("SELECT * FROM nav_manager WHERE key = :key", ["key" => $key]);
+        if ($parent_key === null) {
+            $row = Ctx::$database->get_row("SELECT * FROM nav_manager WHERE key = :key", ["key" => $key]);
+        } else {
+            $row = Ctx::$database->get_row("SELECT * FROM nav_manager WHERE key = :key AND parent_key = :parent", ["key" => $key, "parent" => $parent_key]);
+        }
+
         if ($row === null) {
             return null;
         }
@@ -447,7 +452,7 @@ final class NavManager extends Extension
             if ($data->is_default) {
                 assert($data->key !== null);
 
-                $existing = self::get_link_by_key($data->key);
+                $existing = self::get_link_by_key($data->key, $data->parent_key);
                 if ($existing !== null) {
                     $event->data->id = $existing->id;
                     return;
