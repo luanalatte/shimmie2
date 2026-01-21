@@ -8,6 +8,9 @@ use MicroHTML\HTMLElement;
 
 final class PageSubNavBuildingEvent extends Event
 {
+    use AuthorizesActions;
+    use HasSender;
+
     /** @var NavLink[] */
     public array $links = [];
     public ?NavLink $active_link = null;

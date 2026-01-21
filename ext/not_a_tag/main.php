@@ -112,7 +112,7 @@ final class NotATag extends Extension
     public function onPageSubNavBuilding(PageSubNavBuildingEvent $event): void
     {
         if ($event->parent === "tags") {
-            if (Ctx::$user->can(NotATagPermission::MANAGE_UNTAG_LIST)) {
+            if ($event->can(NotATagPermission::MANAGE_UNTAG_LIST)) {
                 $event->add_nav_link(make_link('untag/list'), "UnTags", "untags");
             }
         }

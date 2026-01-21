@@ -28,18 +28,17 @@ class NavManagerTheme extends Themelet
         )));
     }
 
-    public function display_edit_form(array $row)
+    public function display_edit_form(LinkData $data): void
     {
         $page = Ctx::$page;
-        $is_default = (bool) $row["is_default"];
 
         $sideblock = emptyHTML();
 
-        if ($is_default) {
+        if ($data->is_default) {
             $sideblock->appendChild(
                 SHM_SIMPLE_FORM(
                     make_link("nav_manager/restore"),
-                    INPUT(["type" => "hidden", "name" => "id", "value" => $row["id"]]),
+                    INPUT(["type" => "hidden", "name" => "id", "value" => $data->id]),
                     SHM_SUBMIT("Restore link defaults")
                 )
             );
@@ -51,18 +50,18 @@ class NavManagerTheme extends Themelet
 
         $parent_select = SELECT(
             ["id" => "parent_id", "name" => "parent_id"],
-            OPTION(["value" => "", ... $row["parent_id"] === null ? ["selected" => "selected"] : []], "None")
+            OPTION(["value" => "", ... $data->parent_id === null ? ["selected" => "selected"] : []], "None")
         );
 
         foreach ($this->get_all_parents() as $parent) {
-            if (($parent["id"]) === $row["id"]) {
+            if (($parent["id"]) === $data->id) {
                 continue;
             }
 
             $parent_select->appendChild(
                 OPTION([
                     "value" => $parent["id"],
-                    ... $parent["id"] === $row["parent_id"] ? ["selected" => "selected"] : []
+                    ... $parent["id"] === $data->parent_id ? ["selected" => "selected"] : []
                 ], $parent["description"])
             );
         }
@@ -74,19 +73,19 @@ class NavManagerTheme extends Themelet
             ),
             TR(
                 TD(LABEL(["for" => "description"], "Description")),
-                TD(INPUT(["type" => "text", "id" => "description", "name" => "description", "value" => $row["description"]]))
+                TD(INPUT(["type" => "text", "id" => "description", "name" => "description", "value" => $data->description]))
             ),
             TR(
                 TD(LABEL(["for" => "url"], "URL")),
-                TD(INPUT(["type" => "text", "id" => "url", "name" => "url", "value" => $row["url"]]))
+                TD(INPUT(["type" => "text", "id" => "url", "name" => "url", "value" => $data->url]))
             ),
             TR(
                 TD(LABEL(["for" => "sort_order"], "Order")),
-                TD(INPUT(["type" => "number", "id" => "sort_order", "name" => "sort_order", "value" => $row["sort_order"]]))
+                TD(INPUT(["type" => "number", "id" => "sort_order", "name" => "sort_order", "value" => $data->sort_order]))
             ),
             TR(
                 TD(LABEL(["for" => "enabled"], "Enabled")),
-                TD(INPUT(["type" => "checkbox", "id" => "enabled", "name" => "enabled", ... $row["enabled"] ? ["checked" => "true"] : []]))
+                TD(INPUT(["type" => "checkbox", "id" => "enabled", "name" => "enabled", ... $data->enabled ? ["checked" => "true"] : []]))
             ),
             TR(
                 TD(
@@ -99,7 +98,7 @@ class NavManagerTheme extends Themelet
         $html = emptyHTML(
             SHM_SIMPLE_FORM(
                 make_link("nav_manager/save"),
-                INPUT(["type" => "hidden", "name" => "id", "value" => $row["id"]]),
+                INPUT(["type" => "hidden", "name" => "id", "value" => $data->id]),
                 $table,
             )
         );
@@ -107,8 +106,12 @@ class NavManagerTheme extends Themelet
         $page->add_block(new Block("Edit Navigation Link", $html));
     }
 
+    /**
+     * @return array<array{id: string|int, description: string}>
+     */
     protected function get_all_parents(): array
     {
+        // @phpstan-ignore-next-line
         return Ctx::$database->get_all("SELECT id, description FROM nav_manager WHERE parent_id IS NULL ORDER BY sort_order");
     }
 }

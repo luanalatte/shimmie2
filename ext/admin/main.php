@@ -143,7 +143,7 @@ final class AdminPage extends Extension
     public function onPageSubNavBuilding(PageSubNavBuildingEvent $event): void
     {
         if ($event->parent === "system") {
-            if (Ctx::$user->can(AdminPermission::MANAGE_ADMINTOOLS)) {
+            if ($event->can(AdminPermission::MANAGE_ADMINTOOLS)) {
                 $event->add_nav_link(make_link('admin'), "Board Admin", "board_admin");
             }
         }

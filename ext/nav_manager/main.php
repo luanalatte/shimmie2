@@ -4,10 +4,21 @@ declare(strict_types=1);
 
 namespace Shimmie2;
 
+use GQLA\{Field, Type};
 use MicroCRUD\{ActionColumn, Column, IntegerColumn, Table, TextColumn};
 use MicroHTML\HTMLElement;
 
 use function MicroHTML\{INPUT, OPTION, SELECT};
+
+final class NavlinkUpdateEvent extends Event
+{
+    public function __construct(
+        public LinkData $data
+    ) {
+        parent::__construct();
+    }
+}
+
 
 final class ButtonColumn extends ActionColumn
 {
@@ -15,10 +26,10 @@ final class ButtonColumn extends ActionColumn
     {
         if ($this->table->update_url) {
             return SHM_FORM(
-                make_link($this->table->update_url),
+                make_link((string) $this->table->update_url),
                 method: "GET",
                 children: [
-                    INPUT(["type" => "hidden", "name" => "$this->name", "value" => $row[$this->name]]),
+                    INPUT(["type" => "hidden", "name" => $this->name, "value" => $row[$this->name]]),
                     SHM_SUBMIT("Edit")
                 ]
             );
@@ -35,13 +46,13 @@ final class BooleanColumn extends Column
         parent::__construct($name, $title);
     }
 
-    public function read_input(array $inputs): HTMLElement|string
+    public function read_input(array $inputs): HTMLElement
     {
         $value = @$inputs["r_{$this->name}"];
         return SELECT(
-            ["name" => "r_$this->name"],
+            ["name" => "r_$this->name", "onchange" => "this.form.submit();"],
             OPTION(["value" => "", ...$value === "" ? ["selected" => "selected"] : []], "Any"),
-            ... $this->inverse ? [
+            ...$this->inverse ? [
                 OPTION(["value" => "0", ...$value === "0" ? ["selected" => "selected"] : []], "Yes"),
                 OPTION(["value" => "1", ...$value === "1" ? ["selected" => "selected"] : []], "No"),
             ] : [
@@ -51,7 +62,7 @@ final class BooleanColumn extends Column
         );
     }
 
-    public function display(array $row): HTMLElement|string
+    public function display(array $row): string
     {
         if ($this->inverse) {
             return ($row[$this->name] ? 'No' : 'Yes');
@@ -104,6 +115,83 @@ final class NavlinkTable extends Table
     }
 }
 
+#[Type(name: "LinkData")]
+final class LinkData
+{
+    public ?int $id = null;
+    public ?int $parent_id = null;
+    #[Field]
+    public string $description;
+    #[Field]
+    public Url $url;
+    #[Field]
+    public int $sort_order = 50;
+    public bool $is_default = true;
+    public ?string $key = null;
+    public ?string $parent_key = null;
+    #[Field]
+    public bool $enabled = true;
+    public bool $modified = false;
+
+    public ?string $current_parent;
+
+    /**
+     * @param array{
+     *     id: string|int,
+     *     parent_id: string|int|null,
+     *     description: string,
+     *     url: string,
+     *     sort_order: string|int,
+     *     is_default: string|bool,
+     *     key: string|null,
+     *     parent_key: string|null,
+     *     enabled: string|bool,
+     *     modified: string|bool,
+     *     current_parent: string|null,
+     * }|null $row
+     */
+    public function __construct(?array $row = null)
+    {
+        if ($row === null) {
+            return;
+        }
+
+        $this->id = (int) $row['id'];
+        $this->parent_id = isset($row['parent_id']) ? (int) $row['parent_id'] : null;
+        $this->description = $row['description'];
+        $this->url = make_link($row['url']);
+        $this->sort_order = (int) $row['sort_order'];
+        $this->is_default = (bool) $row['is_default'];
+        $this->key = $row['key'];
+        $this->parent_key = $row['parent_key'];
+        $this->enabled = (bool) $row['enabled'];
+        $this->modified = (bool) $row['modified'];
+        $this->current_parent = $row['current_parent'];
+    }
+
+    #[Field(name: "parent")]
+    public function get_parent(): ?self
+    {
+        if ($this->parent_id === null) {
+            return null;
+        }
+
+        return NavManager::get_link_by_id($this->parent_id);
+    }
+
+    public static function fromNavLink(NavLink $nav_link): self
+    {
+        $instance = new self();
+        $instance->url = $nav_link->link;
+        $instance->description = (string) $nav_link->description;
+        $instance->sort_order = $nav_link->order;
+        $instance->key = $nav_link->key;
+        $instance->parent_key = $nav_link->parent;
+
+        return $instance;
+    }
+}
+
 /** @extends Extension<NavManagerTheme> */
 final class NavManager extends Extension
 {
@@ -152,6 +240,7 @@ final class NavManager extends Extension
             $t = new NavlinkTable(Ctx::$database->raw_db());
             $t->token = Ctx::$user->get_auth_token();
             $t->inputs = $event->GET->toArray();
+            // @phpstan-ignore-next-line
             if (Ctx::$user->can(NavManagerPermission::MANAGE_NAVLINKS)) {
                 $t->update_url = "nav_manager/edit";
             }
@@ -161,21 +250,31 @@ final class NavManager extends Extension
 
         if ($event->page_matches("nav_manager/edit")) {
             $id = (int) $event->GET->req("id");
-            $this->show_edit_form($id);
+            $this->display_edit_form($id);
             return;
         }
 
         if ($event->page_matches("nav_manager/save", "POST")) {
-            $row = $event->POST->toArray();
-            $this->save_changes($row);
+            $data = new LinkData();
+            $data->id = int_escape($event->POST->get("id"));
+            $data->parent_id = nullify(int_escape($event->POST->get("parent_id")));
+            $data->description = $event->POST->req("description");
+            $data->url = make_link(mb_ltrim($event->POST->req("url"), "/"));
+            $data->sort_order = int_escape($event->POST->get("sort_order"));
+            $data->enabled = bool_escape($event->POST->get("enabled") ?? false);
+            $data->modified = true;
+            send_event(new NavlinkUpdateEvent($data));
+            $page->flash("Link saved.");
+            $page->set_redirect(make_link("nav_manager/list"));
             return;
         }
 
         if ($event->page_matches("nav_manager/restore", "POST")) {
-            $id = (int) $event->POST->req("id");
-            $this->restore_link($id);
-            $page->flash("Link data restored.");
-            $page->set_redirect(make_link("nav_manager/edit", ["id" => $id]));
+            $id = $event->POST->req("id");
+            if ($this->restore_link((int) $id)) {
+                $page->flash("Link restored.");
+                $page->set_redirect(make_link("nav_manager/list"));
+            }
             return;
         }
 
@@ -201,11 +300,12 @@ final class NavManager extends Extension
         $this->modify_links($event);
     }
 
-    private function modify_links(PageNavBuildingEvent|PageSubNavBuildingEvent $event)
+    private function modify_links(PageNavBuildingEvent|PageSubNavBuildingEvent $event): void
     {
-        // if ($event->all) {
-        //     return;
-        // }
+        if ($event->sender === self::class) {
+            // Avoid altering links that are being requested by this extension's import feature.
+            return;
+        }
 
         $parent = $event instanceof PageSubNavBuildingEvent ? $event->parent : null;
 
@@ -216,16 +316,16 @@ final class NavManager extends Extension
             if (isset($data[$parent]) && isset($data[$parent][$link->key])) {
                 $link_data = $data[$parent][$link->key];
 
-                if (!$link_data["enabled"] || $link_data["current_parent"] !== $parent) {
+                if (!$link_data->enabled || $link_data->current_parent !== $parent) {
                     if ($event->active_link !== null && $link->key === $event->active_link->key) {
                         $event->active_link = null;
                     }
                     continue;
                 }
 
-                $link->link = make_link($link_data["url"]);
-                $link->description = $link_data["description"];
-                $link->order = $link_data["order"];
+                $link->link = $link_data->url;
+                $link->description = $link_data->description;
+                $link->order = $link_data->sort_order;
 
                 unset($data[$parent][$link->key]);
             }
@@ -236,30 +336,126 @@ final class NavManager extends Extension
         $event->links = $links;
 
         foreach ($data as $new_links) {
-            foreach ($new_links as $row) {
-                if (!$row["enabled"] || $row["current_parent"] !== $parent) {
+            foreach ($new_links as $link_data) {
+                if (!$link_data->enabled || $link_data->current_parent !== $parent) {
                     continue;
                 }
 
-                if ($event instanceof PageNavBuildingEvent) {
-                    $event->add_nav_link(make_link($row["url"]), $row["description"], key: $row["key"], order: $row["sort_order"]);
-                } elseif ($event instanceof PageSubNavBuildingEvent) {
-                    $event->add_nav_link(make_link($row["url"]), $row["description"], order: $row["sort_order"], key: $row["key"]);
-                }
+                $event->add_nav_link($link_data->url, $link_data->description, $link_data->key ?? "nav_manager-$link_data->id", order: $link_data->sort_order);
             }
         }
     }
 
-    public function insert_link(NavLink $link, ?int $parent_id = null, bool $modified = false, bool $enabled = true, bool $is_default = true): bool
+    public static function get_link_by_id(int $id): ?LinkData
     {
-        if ($is_default && $this->record_exists_by_key($link->key, $link->parent)) {
-            return false;
+        $row = Ctx::$database->get_row("SELECT * FROM nav_manager WHERE id = :id", ["id" => $id]);
+        if ($row === null) {
+            return null;
         }
 
+        // @phpstan-ignore-next-line
+        return new LinkData($row);
+    }
+
+    public static function get_link_by_key(string $key): ?LinkData
+    {
+        $row = Ctx::$database->get_row("SELECT * FROM nav_manager WHERE key = :key", ["key" => $key]);
+        if ($row === null) {
+            return null;
+        }
+
+        // @phpstan-ignore-next-line
+        return new LinkData($row);
+    }
+
+    /**
+     * @return array<string,array<string,LinkData>>
+     */
+    private function get_modified_links(?string $parent = null): array
+    {
+        $query = "
+            SELECT a.*, b.key AS current_parent FROM nav_manager AS a
+            LEFT JOIN nav_manager AS b ON b.id = a.parent_id
+            WHERE a.modified = 1";
+        $args = [];
+
+        if ($parent !== null) {
+            $query .= " AND (a.parent_key = :parent OR b.key = :parent)";
+            $args["parent"] = $parent;
+        } else {
+            $query .= " AND a.parent_id IS NULL";
+        }
+
+        $result = [];
+        foreach (Ctx::$database->get_all_iterable($query, $args) as $data) {
+            $data = new LinkData($data);
+
+            if ($data->parent_key !== null && !isset($result[$data->parent_key])) {
+                $result[$data->parent_key] = [];
+            }
+
+            $result[$data->parent_key][$data->key] = $data;
+        }
+
+        return $result;
+    }
+
+    private function display_edit_form(int $id): void
+    {
+        $page = Ctx::$page;
+        $page->set_title("Edit Navigation Link");
+
+        $data = self::get_link_by_id($id);
+        if ($data === null) {
+            $page->set_redirect(make_link("nav_manager/list"));
+            return;
+        }
+
+        $this->theme->display_edit_form($data);
+    }
+
+    public function onNavlinkUpdate(NavlinkUpdateEvent $event): void
+    {
         $database = Ctx::$database;
 
-        $database->execute(
-            "
+        $data = $event->data;
+
+        if ($data->id !== null) {
+            $database->execute(
+                "
+                    UPDATE nav_manager
+                    SET
+                        parent_id = :parent_id,
+                        description = :description,
+                        url = :url,
+                        sort_order = :sort_order,
+                        enabled = :enabled,
+                        modified = :modified
+                    WHERE id = :id
+                ",
+                [
+                    "id" => $data->id,
+                    "parent_id" => $data->parent_id,
+                    "description" => $data->description,
+                    "url" => $data->url->getPage(),
+                    "sort_order" => $data->sort_order,
+                    "enabled" => $data->enabled,
+                    "modified" => $data->modified,
+                ]
+            );
+        } else {
+            if ($data->is_default) {
+                assert($data->key !== null);
+
+                $existing = self::get_link_by_key($data->key);
+                if ($existing !== null) {
+                    $event->data->id = $existing->id;
+                    return;
+                }
+            }
+
+            $database->execute(
+                "
                 INSERT INTO nav_manager(
                     parent_id,
                     description,
@@ -281,212 +477,80 @@ final class NavManager extends Extension
                     :enabled,
                     :modified
                 )",
-            [
-                "parent_id" => $parent_id,
-                "description" => $link->description,
-                "url" => $url = $link->link->getPage(),
-                "sort_order" => $link->order,
-                "is_default" => (int) $is_default,
-                "key" => $link->key,
-                "parent_key" => $link->parent,
-                "enabled" => (int) $enabled,
-                "modified" => (int) $modified,
-            ]
-        );
+                [
+                    "parent_id" => $data->parent_id,
+                    "description" => $data->description,
+                    "url" => $url = $data->url->getPage(),
+                    "sort_order" => $data->sort_order,
+                    "is_default" => $data->is_default,
+                    "key" => $data->key,
+                    "parent_key" => $data->parent_key,
+                    "enabled" => $data->enabled,
+                    "modified" => $data->modified,
+                ]
+            );
 
-        return true;
-    }
-
-    public function save_link(int $id, NavLink $link, ?int $parent_id = null, bool $enabled = true, bool $modified = true): bool
-    {
-        $database = Ctx::$database;
-
-        $database->execute(
-            "
-                UPDATE nav_manager
-                SET
-                    parent_id = :parent_id,
-                    description = :description,
-                    url = :url,
-                    sort_order = :sort_order,
-                    enabled = :enabled,
-                    modified = :modified
-                WHERE id = :id
-            ",
-            [
-                "id" => $id,
-                "parent_id" => $parent_id,
-                "description" => $link->description,
-                "url" => $link->link->getPage(),
-                "sort_order" => $link->order,
-                "enabled" => (int) $enabled,
-                "modified" => (int) $modified,
-            ]
-        );
-
-        return true;
-    }
-
-    private function get_link_by_id(int $id): ?array
-    {
-        return Ctx::$database->get_row("SELECT * FROM nav_manager WHERE id = :id", ["id" => $id]);
-    }
-
-    private function get_link_by_key(string $key): ?array
-    {
-        return Ctx::$database->get_row("SELECT * FROM nav_manager WHERE key = :key", ["key" => $key]);
-    }
-
-    private function get_modified_links(?string $parent = null)
-    {
-        $query = "
-            SELECT a.*, b.key AS current_parent FROM nav_manager AS a
-            LEFT JOIN nav_manager AS b ON b.id = a.parent_id
-            WHERE a.modified = 1";
-        $args = [];
-
-        if ($parent !== null) {
-            $query .= " AND (a.parent_key = :parent OR b.key = :parent)";
-            $args["parent"] = $parent;
-        } else {
-            $query .= " AND a.parent_id IS NULL";
-        }
-
-        $items = Ctx::$database->get_all($query, $args);
-
-        $result = [];
-        foreach ($items as $link) {
-            if (!isset($result[$link["parent_key"]])) {
-                $result[$link["parent_key"]] = [];
-            }
-
-            $result[$link["parent_key"]][$link["key"]] = $link;
-        }
-
-        return $result;
-    }
-
-    private function show_edit_form(int $id)
-    {
-        Ctx::$page->set_title("Edit Navigation Link");
-        $row = $this->get_link_by_id($id);
-        $this->theme->display_edit_form($row ?? []);
-    }
-
-    public function save_changes(array $row): void
-    {
-        $page = Ctx::$page;
-
-        $id = (int) $row["id"];
-        $parent_id = ((int) $row["parent_id"]) ?: null;
-        $description = $row["description"];
-        $url = mb_ltrim($row["url"], "/");
-        $order = (int) $row["sort_order"];
-        $enabled = isset($row["enabled"]);
-
-        // if (!$id) {
-        //     if ($this->insert_link(
-        //         new NavLink(make_link($url), $description, key: $key, order: $order, parent: $parent),
-        //         modified: true,
-        //         enabled: $enabled,
-        //         is_default: false
-        //     )) {
-        //         $page->flash("Changes saved.");
-        //         $page->set_redirect(make_link("nav_manager/list"));
-        //     }
-        //     return;
-        // }
-
-        if (
-            $this->save_link(
-                $id,
-                new NavLink(make_link($url), $description, "", order: $order),
-                $parent_id,
-                $enabled
-            )
-        ) {
-            $page->flash("Changes saved.");
-            $page->set_redirect(make_link("nav_manager/list"));
-            return;
+            $event->data->id = $database->get_last_insert_id("nav_manager_id_seq");
         }
     }
 
     private function restore_link(int $id): bool
     {
-        $data = $this->get_link_by_id($id);
-
-        $link = $this->find_link_by_key($data["key"], $data["parent_key"]);
-        if ($link !== null) {
-            $parent_data = [];
-            if ($link->parent) {
-                $parent_data = $this->get_link_by_key($link->parent);
-            }
-
-            return $this->save_link(
-                $id,
-                $link,
-                $parent_data["id"] ?? null,
-                modified: false,
-                enabled: true
-            );
+        $data = self::get_link_by_id($id);
+        if ($data === null || $data->key === null) {
+            return false;
         }
 
-        return false;
+        $navlink = null;
+        $event = send_event($data->parent_key === null ? new PageNavBuildingEvent()->ignorePermissions()->setSender(self::class) : new PageSubNavBuildingEvent($data->parent_key)->ignorePermissions()->setSender(self::class));
+        foreach ($event->links as $link) {
+            if ($link->key === $data->key) {
+                $navlink = $link;
+                break;
+            }
+        }
+
+        if ($navlink === null) {
+            return false;
+        }
+
+        $parent_id = null;
+        if ($navlink->parent !== null) {
+            $parent = self::get_link_by_key($navlink->parent);
+            $parent_id = $parent?->id;
+        }
+
+        $data = LinkData::fromNavLink($navlink);
+        $data->id = $id;
+        $data->parent_id = $parent_id;
+        $data->enabled = true;
+        $data->modified = false;
+
+        send_event(new NavlinkUpdateEvent($data));
+        return true;
     }
 
     private function import_new_links(): void
     {
-        $pnbe = send_event(new PageNavBuildingEvent());
+        $pnbe = send_event(new PageNavBuildingEvent()->ignorePermissions()->setSender(self::class));
 
         foreach ($pnbe->links as $link) {
-            $parent_id = null;
-            if ($this->insert_link($link)) {
-                $parent_id = Ctx::$database->get_last_insert_id("nav_manager_id_seq");
-            }
+            $data = LinkData::fromNavLink($link);
+            $event = send_event(new NavlinkUpdateEvent($data));
+
+            $parent_id = $event->data->id;
 
             if ($parent_id === null) {
-                $parent_id = $this->get_link_by_key($link->key)["id"] ?? null;
+                continue;
             }
 
-            $psnbe = send_event(new PageSubNavBuildingEvent($link->key));
+            $psnbe = send_event(new PageSubNavBuildingEvent($link->key)->ignorePermissions()->setSender(self::class));
 
             foreach ($psnbe->links as $sublink) {
-                $this->insert_link($sublink, $parent_id);
+                $data = LinkData::fromNavLink($sublink);
+                $data->parent_id = $parent_id;
+                send_event(new NavlinkUpdateEvent($data));
             }
         }
-    }
-
-    /**
-     * Finds a NavLink by the given key, using the original parent and not the one set in the DB.
-     * @param string $key
-     * @param ?string $parent_key
-     * @return NavLink|null
-     */
-    private function find_link_by_key(string $key, ?string $parent_key = null): ?NavLink
-    {
-        $event = send_event($parent_key === null ? new PageNavBuildingEvent() : new PageSubNavBuildingEvent($parent_key));
-
-        foreach ($event->links as $link) {
-            if ($link->key === $key) {
-                return $link;
-            }
-        }
-
-        return null;
-    }
-
-    private function record_exists_by_key(string $key, ?string $parent = null): bool
-    {
-        if ($parent === null) {
-            if (Ctx::$database->get_one("SELECT 1 FROM nav_manager WHERE key = :key", ["key" => $key])) {
-                return true;
-            }
-        } else {
-            if (Ctx::$database->get_one("SELECT 1 FROM nav_manager WHERE key = :key AND parent_key = :parent_key", ["key" => $key, "parent_key" => $parent])) {
-                return true;
-            }
-        }
-
-        return false;
     }
 }

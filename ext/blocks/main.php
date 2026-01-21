@@ -39,7 +39,7 @@ final class Blocks extends Extension
     public function onPageSubNavBuilding(PageSubNavBuildingEvent $event): void
     {
         if ($event->parent === "system") {
-            if (Ctx::$user->can(BlocksPermission::MANAGE_BLOCKS)) {
+            if ($event->can(BlocksPermission::MANAGE_BLOCKS)) {
                 $event->add_nav_link(make_link('blocks/list'), "Blocks Editor", "blocks_editor");
             }
         }

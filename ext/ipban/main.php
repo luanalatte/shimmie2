@@ -210,7 +210,7 @@ final class IPBan extends Extension
     public function onPageSubNavBuilding(PageSubNavBuildingEvent $event): void
     {
         if ($event->parent === "system") {
-            if (Ctx::$user->can(IPBanPermission::BAN_IP)) {
+            if ($event->can(IPBanPermission::BAN_IP)) {
                 $event->add_nav_link(make_link('ip_ban/list'), "IP Bans", "ip_bans", ["ip_ban"]);
             }
         }

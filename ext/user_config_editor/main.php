@@ -13,7 +13,7 @@ final class UserConfigEditor extends Extension
     public function onPageSubNavBuilding(PageSubNavBuildingEvent $event): void
     {
         if ($event->parent === "user") {
-            if (Ctx::$user->can(UserAccountsPermission::CHANGE_USER_SETTING)) {
+            if ($event->can(UserAccountsPermission::CHANGE_USER_SETTING)) {
                 $event->add_nav_link(make_link('user_config'), "User Options", "config", order: 40);
             }
         }

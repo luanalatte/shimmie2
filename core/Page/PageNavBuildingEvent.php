@@ -6,6 +6,9 @@ namespace Shimmie2;
 
 final class PageNavBuildingEvent extends Event
 {
+    use AuthorizesActions;
+    use HasSender;
+
     /** @var NavLink[] */
     public array $links = [];
     public ?NavLink $active_link = null;

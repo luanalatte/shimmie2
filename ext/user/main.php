@@ -412,11 +412,11 @@ final class UserPage extends Extension
     {
         $is_anonymous = Ctx::$user->is_anonymous();
 
-        if ($is_anonymous) {
+        if ($is_anonymous || $event->ignores_permissions) {
             $event->add_nav_link(make_link('user_admin/login'), "Account", "user", order: 10);
         }
 
-        if (!$is_anonymous) {
+        if (!$is_anonymous || $event->ignores_permissions) {
             $event->add_nav_link(make_link('user'), "Account", "user", ["user"], order: 10);
         }
     }
@@ -472,13 +472,13 @@ final class UserPage extends Extension
     public function onPageSubNavBuilding(PageSubNavBuildingEvent $event): void
     {
         if ($event->parent === "system") {
-            if (Ctx::$user->can(UserAccountsPermission::EDIT_USER_PASSWORD)) {
+            if ($event->can(UserAccountsPermission::EDIT_USER_PASSWORD)) {
                 $event->add_nav_link(make_link('user_admin/list'), "User List", "user_list", ["user_admin"], order: 87);
             }
         }
 
         if ($event->parent === "user") {
-            if (!Ctx::$user->is_anonymous()) {
+            if (!Ctx::$user->is_anonymous() || $event->ignores_permissions) {
                 $event->add_nav_link(make_link('user_admin/logout'), "Log Out", "log_out", order: 99);
             }
         }

@@ -113,7 +113,7 @@ final class TagHistory extends Extension
     public function onPageSubNavBuilding(PageSubNavBuildingEvent $event): void
     {
         if ($event->parent === "system") {
-            if (Ctx::$user->can(BulkActionsPermission::BULK_EDIT_IMAGE_TAG)) {
+            if ($event->can(BulkActionsPermission::BULK_EDIT_IMAGE_TAG)) {
                 $event->add_nav_link(make_link('tag_history/all/1'), "Tag Changes", "tag_history", ["tag_history"]);
             }
         }

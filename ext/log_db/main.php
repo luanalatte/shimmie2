@@ -235,7 +235,7 @@ final class LogDatabase extends Extension
     public function onPageSubNavBuilding(PageSubNavBuildingEvent $event): void
     {
         if ($event->parent === "system") {
-            if (Ctx::$user->can(LogDatabasePermission::VIEW_EVENTLOG)) {
+            if ($event->can(LogDatabasePermission::VIEW_EVENTLOG)) {
                 $event->add_nav_link(make_link('log/view'), "Event Log", "event_log");
             }
         }

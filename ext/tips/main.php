@@ -88,7 +88,7 @@ final class Tips extends Extension
     public function onPageSubNavBuilding(PageSubNavBuildingEvent $event): void
     {
         if ($event->parent === "system") {
-            if (Ctx::$user->can(TipsPermission::ADMIN)) {
+            if ($event->can(TipsPermission::ADMIN)) {
                 $event->add_nav_link(make_link('tips/list'), "Tips Editor", "tips_editor");
             }
         }

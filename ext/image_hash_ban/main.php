@@ -137,7 +137,7 @@ final class ImageBan extends Extension
     public function onPageSubNavBuilding(PageSubNavBuildingEvent $event): void
     {
         if ($event->parent === "system") {
-            if (Ctx::$user->can(ImageHashBanPermission::BAN_IMAGE)) {
+            if ($event->can(ImageHashBanPermission::BAN_IMAGE)) {
                 $event->add_nav_link(make_link('image_hash_ban/list'), "Post Bans", "hash_bans", ["image_hash_ban"]);
             }
         }

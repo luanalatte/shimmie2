@@ -87,7 +87,7 @@ final class Approval extends Extension
     public function onPageSubNavBuilding(PageSubNavBuildingEvent $event): void
     {
         if ($event->parent === "posts") {
-            if (!Ctx::$user->is_anonymous()) {
+            if (!Ctx::$user->is_anonymous() || $event->ignores_permissions) {
                 $event->add_nav_link(search_link(['approved=no']), "Pending Approval", "pending_approval", order: 60);
             }
         }

@@ -168,7 +168,7 @@ final class Setup extends Extension
     public function onPageSubNavBuilding(PageSubNavBuildingEvent $event): void
     {
         if ($event->parent === "system") {
-            if (Ctx::$user->can(SetupPermission::CHANGE_SETTING)) {
+            if ($event->can(SetupPermission::CHANGE_SETTING)) {
                 $event->add_nav_link(make_link('setup'), "Board Config", "board_config", order: 0);
             }
         }

@@ -29,7 +29,7 @@ final class ET extends Extension
     public function onPageSubNavBuilding(PageSubNavBuildingEvent $event): void
     {
         if ($event->parent === "system") {
-            if (Ctx::$user->can(ETPermission::VIEW_SYSINFO)) {
+            if ($event->can(ETPermission::VIEW_SYSINFO)) {
                 $event->add_nav_link(make_link('system_info'), "System Info", "info", order: 99);
             }
         }

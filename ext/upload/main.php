@@ -135,7 +135,7 @@ final class Upload extends Extension
     #[EventListener]
     public function onPageNavBuilding(PageNavBuildingEvent $event): void
     {
-        if (Ctx::$user->can(ImagePermission::CREATE_IMAGE)) {
+        if ($event->can(ImagePermission::CREATE_IMAGE)) {
             $event->add_nav_link(make_link('upload'), "Upload", "upload");
         }
     }

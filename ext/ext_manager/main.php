@@ -89,7 +89,7 @@ final class ExtManager extends Extension
     public function onPageSubNavBuilding(PageSubNavBuildingEvent $event): void
     {
         if ($event->parent === "system") {
-            if (Ctx::$user->can(ExtManagerPermission::MANAGE_EXTENSION_LIST)) {
+            if ($event->can(ExtManagerPermission::MANAGE_EXTENSION_LIST)) {
                 $event->add_nav_link(make_link('ext_manager'), "Extension Manager", "ext_manager");
             }
         }
