@@ -119,8 +119,6 @@ trait Page_Page
 
     protected function display_page(): void
     {
-        $this->build_navigation();
-
         usort($this->blocks, Block::cmp(...));
         $this->add_auto_html_headers();
         $str = (string)$this->render();
