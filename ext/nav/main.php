@@ -18,12 +18,7 @@ final class Nav extends Extension
 {
     public const string KEY = NavInfo::KEY;
 
-    public function get_priority(): int
-    {
-        // Before 404
-        return 98;
-    }
-
+    #[EventListener(priority: 97)] // Before nav_manager
     public function onPageRequest(PageRequestEvent $event): void
     {
         $nbe = send_event(new NavBuildingEvent());
