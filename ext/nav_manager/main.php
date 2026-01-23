@@ -197,12 +197,7 @@ final class NavManager extends Extension
 {
     public const string KEY = NavManagerInfo::KEY;
 
-    public function get_priority(): int
-    {
-        //before 404
-        return 98;
-    }
-
+    #[EventListener]
     public function onDatabaseUpgrade(DatabaseUpgradeEvent $event): void
     {
         $database = Ctx::$database;
@@ -228,6 +223,7 @@ final class NavManager extends Extension
         }
     }
 
+    #[EventListener]
     public function onPageRequest(PageRequestEvent $event): void
     {
         if (!Ctx::$user->can(NavManagerPermission::MANAGE_NAVLINKS)) {
@@ -286,11 +282,13 @@ final class NavManager extends Extension
         }
     }
 
+    #[EventListener(priority: 98)] // After all links are added, but before 404.
     public function onPageNavBuilding(PageNavBuildingEvent $event): void
     {
         $this->modify_links($event);
     }
 
+    #[EventListener(priority: 98)] // After all links are added, but before 404.
     public function onPageSubNavBuilding(PageSubNavBuildingEvent $event): void
     {
         if ($event->parent === "system") {
@@ -419,6 +417,7 @@ final class NavManager extends Extension
         $this->theme->display_edit_form($data);
     }
 
+    #[EventListener]
     public function onNavlinkUpdate(NavlinkUpdateEvent $event): void
     {
         $database = Ctx::$database;
