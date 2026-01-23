@@ -26,6 +26,7 @@ final class GLightboxViewer extends DataHandlerExtension
         return 49; // Before handle_image
     }
 
+    #[EventListener]
     public function onDisplayingImage(DisplayingImageEvent $event): void
     {
         if ($this->supported_mime($event->image->get_mime())) {
