@@ -9,6 +9,7 @@ final class PermManager extends Extension
 {
     public const KEY = "perm_manager";
 
+    #[EventListener(priority: 70)] // After `user` loads default and `user_class_file` loads from file
     public function onInitExt(InitExtEvent $event): void
     {
         UserClass::$loading = UserClassSource::DATABASE;
@@ -31,6 +32,7 @@ final class PermManager extends Extension
         UserClass::$loading = UserClassSource::UNKNOWN;
     }
 
+    #[EventListener]
     public function onDatabaseUpgrade(DatabaseUpgradeEvent $event): void
     {
         global $database;
@@ -57,6 +59,7 @@ final class PermManager extends Extension
         }
     }
 
+    #[EventListener]
     public function onPageRequest(PageRequestEvent $event): void
     {
         // Overview
@@ -174,6 +177,7 @@ final class PermManager extends Extension
         }
     }
 
+    #[EventListener]
     public function onPageSubNavBuilding(PageSubNavBuildingEvent $event): void
     {
         if ($event->parent === "system") {
@@ -181,10 +185,5 @@ final class PermManager extends Extension
                 $event->add_nav_link(make_link('perm_manager'), "Permission Manager", "perm_manager", order: 88);
             }
         }
-    }
-
-    public function get_priority(): int
-    {
-        return 70; // After `user` loads default and `user_class_file` loads from file
     }
 }

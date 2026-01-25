@@ -9,6 +9,7 @@ final class UserConfigEditor extends Extension
 {
     public const KEY = "user_config_editor";
 
+    #[EventListener]
     public function onPageSubNavBuilding(PageSubNavBuildingEvent $event): void
     {
         if ($event->parent === "user") {
@@ -18,6 +19,7 @@ final class UserConfigEditor extends Extension
         }
     }
 
+    #[EventListener]
     public function onPageRequest(PageRequestEvent $event): void
     {
         global $database;

@@ -141,6 +141,7 @@ final class PrivMsg extends Extension
     public const KEY = "pm";
     public const VERSION_KEY = "pm_version";
 
+    #[EventListener]
     public function onDatabaseUpgrade(DatabaseUpgradeEvent $event): void
     {
         global $database;
@@ -179,6 +180,7 @@ final class PrivMsg extends Extension
         }
     }
 
+    #[EventListener]
     public function onPageSubNavBuilding(PageSubNavBuildingEvent $event): void
     {
         if ($event->parent === "user") {
@@ -190,6 +192,7 @@ final class PrivMsg extends Extension
         }
     }
 
+    #[EventListener]
     public function onUserPageBuilding(UserPageBuildingEvent $event): void
     {
         $duser = $event->display_user;
@@ -208,6 +211,7 @@ final class PrivMsg extends Extension
         }
     }
 
+    #[EventListener]
     public function onPageRequest(PageRequestEvent $event): void
     {
         global $database;
@@ -256,6 +260,7 @@ final class PrivMsg extends Extension
         }
     }
 
+    #[EventListener]
     public function onSendPM(SendPMEvent $event): void
     {
         Ctx::$database->execute(

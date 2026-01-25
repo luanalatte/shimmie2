@@ -8,6 +8,7 @@ final class System extends Extension
 {
     public const KEY = "system";
 
+    #[EventListener]
     public function onPageRequest(PageRequestEvent $event): void
     {
         if ($event->page_matches("system")) {
@@ -19,6 +20,7 @@ final class System extends Extension
         }
     }
 
+    #[EventListener]
     public function onPageNavBuilding(PageNavBuildingEvent $event): void
     {
         $event->add_nav_link(make_link('system'), "System", "system");
